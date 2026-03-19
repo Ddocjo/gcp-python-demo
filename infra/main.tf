@@ -18,11 +18,6 @@ resource "google_secret_manager_secret" "app_secret" {
   }
 }
 
-resource "google_secret_manager_secret_version" "app_secret_v1" {
-  secret      = google_secret_manager_secret.app_secret.id
-  secret_data = "super-demo-secret-change-me"
-}
-
 resource "google_secret_manager_secret_iam_member" "run_sa_secret_access" {
   secret_id = google_secret_manager_secret.app_secret.id
   role      = "roles/secretmanager.secretAccessor"
