@@ -4,6 +4,7 @@ A lightweight end to end Google Cloud demo showing how to build, test, scan, sto
 
 This project was built to demonstrate practical cloud engineering, security, and CI/CD concepts in a small but complete deployment flow.
 
+![Architecture](./gcp_architecture.png)
 ---
 
 ## Project objectives
