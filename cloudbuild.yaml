@@ -1,0 +1,71 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _REGION: europe-west1
+  _PROJECT_ID: gcp-python-demo-489721
+  _REPO_NAME: gcp-python-demo
+  _IMAGE_NAME: gcp-python-demo
+  _SERVICE_NAME: gcp-python-demo
+  _SERVICE_ACCOUNT: cloudrun-runtime-sa@gcp-python-demo-489721.iam.gserviceaccount.com
+  _SECRET_NAME: demo-api-key
+
+steps:
+  - name: python:3.11
+    id: validate-config
+    entrypoint: bash
+    env:
+      - PROJECT_ID=${_PROJECT_ID}
+      - REGION=${_REGION}
+      - SERVICE_NAME=${_SERVICE_NAME}
+      - SERVICE_ACCOUNT=${_SERVICE_ACCOUNT}
+      - SECRET_NAME=${_SECRET_NAME}
+      - REPO_NAME=${_REPO_NAME}
+      - ALLOW_UNAUTHENTICATED=false
+    args:
+      - -c
+      - |
+        python scripts/validate_config.py
+
+  - name: python:3.11
+    id: run-tests
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        pip install --no-cache-dir -r app/requirements.txt
+        export PYTHONPATH=$PWD
+        pytest -q
+
+  - name: gcr.io/cloud-builders/docker
+    id: build-image
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}
+      - -f
+      - app/Dockerfile
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-image
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-cloud-run
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud run deploy ${_SERVICE_NAME} \
+          --image ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA} \
+          --region ${_REGION} \
+          --platform managed \
+          --service-account ${_SERVICE_ACCOUNT} \
+          --no-allow-unauthenticated \
+          --set-env-vars "GCP_PROJECT=${_PROJECT_ID},APP_SECRET_ID=${_SECRET_NAME}"
+
+images:
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}
